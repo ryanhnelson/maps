@@ -1,0 +1,63 @@
+---
+title: 'Styrkeprøven: Lillehammer -> Oslo Cyclosportive'
+author: "Ryan Nelson"
+output:
+  html_notebook: default
+  'tufte::tufte_html: default': default
+---
+![](styrkeprøven-banner.jpg)
+
+# Overview
+
+On June 17th, 2017, the 16th edition of the [Styrkeprøven](http://styrkeproven.no/en/frontpage) Cyclosportive will take place. With different starting points on the way to Oslo, the following races and their respective distances are possible:
+
+Route               | Distance | Elevation Gain
+------------------- | -------- | --------------
+Trondheim - Oslo    | 543 km   | 3627 m
+Kvam - Oslo         | 279 km   | 1655 m
+Lillehammer - Oslo  | 191 km   | 1327 m
+Gjøvik - Oslo       | 136 km   | 912 m
+Eidsvoll - Oslo     | 63 km    | 455 m
+
+This R Notebook is my look at the Lillehammer to Oslo route, at a distance of 191 kilometers.
+
+# The Data: Lillehammer to Oslo
+
+To analyze the course for the race, We need to acquire the data describing the course. This is available as a .GPX file on [the course site](http://styrkeproven.no/en/races/lillehammer). 
+GPX is an XML file format used for geographical data, and is very commonly used in cycling as a file format for both recording rides, and generating routes one can follow. For ease of use (and because the library readGPX is currently not available for R 3.3.1), I downloaded it as a .CSV file for ease of analysis.
+
+```{r}
+geodf <- read.csv("lillehammer.csv", sep = ";")
+```
+
+Now that we have the raw geographical points imported, we're going to use a helper function to assist in creating vectors with starts and ends between each point so that we can route it. The helper function code comes from [https://rcrastinate.blogspot.de/2014/09/stay-on-track-plotting-gps-tracks-with-r.html](Rcrastinate), so all credit goes to them for the cool work there.
+
+```{r}
+library(raster)
+
+shift.vec <- function (vec, shift) {
+  if(length(vec) <= abs(shift)) {
+    rep(NA ,length(vec))
+  }else{
+    if (shift >= 0) {
+      c(rep(NA, shift), vec[1:(length(vec)-shift)]) }
+    else {
+      c(vec[(abs(shift)+1):length(vec)], rep(NA, abs(shift))) } } }
+
+# Shift vectors for lat and lon so that each row also contains the next position.
+geodf$lat.p1 <- shift.vec(geodf$lat, -1)
+geodf$lon.p1 <- shift.vec(geodf$lon, -1)
+
+# Calculate distances (in metres) using the function pointDistance from the 'raster' package.
+# Parameter 'lonlat' has to be TRUE!
+geodf$dist.to.prev <- apply(geodf, 1, FUN = function (row) {
+  pointDistance(c(as.numeric(row["lat.p1"]),
+  as.numeric(row["lon.p1"])),
+                c(as.numeric(row["lat"]), as.numeric(row["lon"])),
+                lonlat = T)
+})
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
